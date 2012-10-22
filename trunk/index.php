@@ -97,30 +97,37 @@
                 var html = 'result Count: ';
                 html += msg.resultCount;
                 html += '<br/>';
-                html += '<table>';
-                html += '<tr><th>名称</th><th>id</th></tr>';
-                
 
                 $.each(msg.results, function(i,item){
-                    html += '<tr>';
-                    html += '<td>'+item.trackName+'</td>';
-                    html += '<td>'+item.trackId+'</td>';;
+                    html += '<div style="border:1px solid #DDD;padding:10px;margin:5px 0px;">';
+                    html += '<button class="btn" onclick="add_to_db(this, ' + item['trackId'] + ');">收录</button>'; 
 
-                    html += '<td>'; 
                     for (prop in item) {
-                        html += prop + ":" + item[prop] + '</br>';
+                        html += "<p><b>"+prop+"</b>" + ":" + item[prop] + '</p>';
                     } 
-                    html += '</td>'; 
 
-                    html += '</tr>';
+                    html += '</div>';
+
                 });
 
-                html += '</table>';
 
                 $('#result').html(html); 
             });
             
         } 
+
+        function add_to_db(obj, trackId) {
+            $.get('add_to_db.php', {trackId:trackId}, function(msg){
+
+                if ( msg=='ok' ) {
+                    $(obj).html('已录'); 
+                } else {
+                    alert(msg);
+                } 
+
+            });
+        }
+
     </script>
 
   </body> 
