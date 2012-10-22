@@ -1,16 +1,18 @@
 <?php 
-$batchDB['host'] = 'www.tomtalk.net';
-$batchDB['user'] = 'root';
-$batchDB['pwd']  = '';
+require 'config.php';
 
 $connP = mysql_connect( $batchDB['host'], $batchDB['user'], $batchDB['pwd'] ) OR die( 1 );
 mysql_select_db( 'apple_app', $connP ) OR die( 1 );
 mysql_query( "set character set 'utf8'" );
 
-$sql  = "SELECT * FROM app";
-$rows = mysql_query( $sql , $connP );
+$trackId = $_REQUEST['trackId'];
 
-while ( $row = mysql_fetch_array($rows) ) { 
-    echo $row['app_name'];
-} 
+$sql  = "INSERT INTO app (trackId) VALUES ($trackId)";
+
+if (mysql_query( $sql , $connP )) {
+    echo 'ok'; 
+}  else {
+    echo 'DB operating failuer!';
+}
+
 //end  file 
