@@ -91,8 +91,7 @@
             var keyword = $('#keyword').val();
             var limit = $('#limit').val();
 
-            $.getJSON('grab_itune.php', {keyword:keyword,limit:limit}, function(msg){
-                console.log(msg); 
+            $.getJSON('grab-itune.php', {keyword:keyword,limit:limit}, function(msg){
 
                 var html = 'result Count: ';
                 html += msg.resultCount;
