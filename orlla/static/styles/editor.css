@@ -1,0 +1,90 @@
+.editor_container {
+    /*overflow: hidden;*/
+	overflow: hidden;
+}
+
+.editor_textarea {
+    /*width: 100%;*/
+	border: 1px solid #999;
+	border-top: 0;
+	overflow: auto;
+}
+
+.editor_toolbar {
+    border: 1px solid #999;
+	background-color: #EFEFDE;
+	/*height: 26px;*/
+}
+
+.eidtor_toolbar_row {
+    padding: 1px;
+    height: 24px;
+	clear: both;
+}
+
+.editor_toolbar_start {
+    /*width: 3px;*/
+	height: 22px;
+	float: left;
+}
+
+.editor_toolbar_start img {
+    margin: 4px 2px;
+}
+
+.editor_toolbar_separator {
+	float: left;
+}
+
+.editor_toolbar_separator img {
+    margin-top: 1px;
+}
+
+.editor_toolbar_button {
+    display: block;
+    height: 21px;
+	float: left;
+	background: #EFEFDE;
+    border: 1px solid #EFEFDE;
+	overflow: hidden;
+}
+
+:hover.editor_toolbar_button, .editor_toolbar_button_hover {
+    display: block;
+    height: 21px;
+	float: left;
+    background: #DFF1FF;
+	border: 1px solid #316AC5;
+	overflow: hidden;
+}
+
+
+.editor_toolbar_button_hold {
+    display: block;
+    height: 21px;
+	float: left;
+    background: #DFF1FF;
+	border: 1px solid #316AC5;
+	overflow: hidden;
+}
+
+:hover.editor_toolbar_button_hold {
+    background: #DFF1FF;
+	border: 1px solid #316AC5;
+}
+
+.editor_toolbar_button_image {
+    width: 16px;
+	height: 16px;
+	overflow: hidden;
+	margin: 2px;
+}
+
+.editor_toolbar_select {
+    display: block;
+    height: 21px;
+	float: left;
+	background: #EFEFDE;
+    border: 1px solid #EFEFDE;
+	overflow: hidden;
+}
