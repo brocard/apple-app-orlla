@@ -40,31 +40,29 @@ $category_id = array(6018, 6000, 6022, 6017, 6016, 6015, 6023, 6014, 7001, 7002,
 $letters = array('A','B','C','D','E','F','G','H','I','J','K','L','M','N',
     'O','P','Q','R','S','T','U','V','W','X','Y','Z','*');
 
-$cat_id = 7010;
-
 $old = ''; //判断第一个运用，确定是否没有更多分页了。
-//foreach ($letters as $letter) {
-    for ($i = 1; $i<10; $i++) {
-        //$url = "https://itunes.apple.com/us/genre/ios-games/id$cat_id?letter=$letter&page=$i"; 
-        $url = "https://itunes.apple.com/us/genre/ios-games/id$cat_id?letter=*&page=$i"; 
+foreach ($category_id as $cat_id) {
+    foreach ($letters as $letter) {
+        for ($i = 1; $i<500; $i++) {
+            $url = "https://itunes.apple.com/us/genre/ios-games/id$cat_id?letter=$letter&page=$i"; 
+            $page_content = get_site_content($url); 
+            $urls = get_page_url($page_content); 
 
-        $page_content = get_site_content($url);
+            if ($old == $urls[0]) {
+                break;
+            } else {
+                $old = $urls[0]; 
+            } 
 
-        $urls = get_page_url($page_content); 
+            get_and_save_app_id($urls); //提取应用ID并保存
 
-        echo $url. "<br />";
-
-        if ($old == $urls[0]) {
-            break;
-        } else {
-            $old = $urls[0]; 
-        } 
-
-        //提取应用ID并保存
-        get_and_save_app_id($urls);
+            //信息显示
+            echo $url. "\n";
+            echo 'App total: ' . count($app_ids)."\n";
+        }
     }
-//}
+}
 
-echo '<p>App total: ' . count($app_ids);
+echo 'finished!'."\n";
 
 //end  file 
