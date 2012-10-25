@@ -88,8 +88,8 @@ foreach ($app_ids as $id => $count) {
 
     if ( ! mysql_query($sql, $conn)) {
         echo $id . ' insert failure'."\n";
-        echo $sql;
-        exit;
+        //echo $sql;
+        //exit;
     } else {
         unset($app_ids[$id]);
         echo $i++ . '   ';

@@ -49,13 +49,25 @@ mysql_query( "set character set 'utf8'" );
             <h3>Category of App</h3>
             <hr>
             <?php
+            $mem = new Memcache; 
+            $mem->connect('localhost', 12000) or die ("Could not connect"); 
 
             $sql = 'SELECT DISTINCT primaryGenreName FROM app';
-            $rows = mysql_query($sql, $conn); 
-            echo '<li><a href="?">All</a>'; 
-            while ( $row = mysql_fetch_array($rows) ) {
-                echo '<li><a href="?cat='.$row['primaryGenreName'].'">'.$row['primaryGenreName'].'</a>'; 
-            } 
+
+            $app_category = $mem->get('app_category');
+            if ( ! $app_category ) {
+                $rows = mysql_query($sql, $conn); 
+                $app_category = '<li><a href="?">All</a>'; 
+                while ( $row = mysql_fetch_array($rows) ) {
+                    $app_category .= '<li><a href="?cat='.$row['primaryGenreName'].'">'.$row['primaryGenreName'].'</a>'; 
+                } 
+
+                $mem->set('app_category', $app_category, 0, 600); 
+            } else {
+                //echo 'hit';
+            }
+
+            echo $app_category; 
             ?> 
         </div><!--end span3-->
 
@@ -77,21 +89,27 @@ echo '<p>Sum of App : ' . $total['total'];
 $perpage = 10;
 
 $sql  = "SELECT * FROM app $where limit $perpage";
-$rows = mysql_query($sql, $conn); 
 
-echo '<table class="table">';
+$cat_list = $mem->get('w'.$cat);
+if ( ! $cat_list) { 
+    $rows = mysql_query($sql, $conn); 
+    $cat_list = '<table class="table">'; 
+    while ( $row = mysql_fetch_array($rows) ) {
+        $cat_list .= '<tr>';
+        $cat_list .= '<td><a><img class="thumbnail" width="57px" height="57px" src="'.$row['artworkUrl60'].'" alt="" /></a></td>';
+        $cat_list .= '<td><a href="app-detail.php?id='.$row['trackId'].'">'.$row['trackName'].'</a></td>';
+        $cat_list .= '<td>'.$row['primaryGenreName'].'</td>';
+        $cat_list .= '<td>'.$row['formattedPrice'].'</td>';
+        $cat_list .= '<td>'.$row['averageUserRating'].'</td>'; 
+        $cat_list .= '</tr>';
+    } 
+    $cat_list .= '</table>';
+    $mem->set('w'.$cat, $cat_list, 0, 600); 
+} else {
+    //echo 'hit';
+}
 
-while ( $row = mysql_fetch_array($rows) ) {
-    echo '<tr>';
-    echo '<td><a><img class="thumbnail" width="57px" height="57px" src="'.$row['artworkUrl60'].'" alt="" /></a></td>';
-    echo '<td><a href="app-detail.php?id='.$row['trackId'].'">'.$row['trackName'].'</a></td>';
-    echo '<td>'.$row['primaryGenreName'].'</td>';
-    echo '<td>'.$row['formattedPrice'].'</td>';
-    echo '<td>'.$row['averageUserRating'].'</td>';
-
-    echo '</tr>';
-} 
-echo '</table>';
+echo $cat_list;
 
 $page=1;
 $url='';
