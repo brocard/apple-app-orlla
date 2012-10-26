@@ -1,6 +1,6 @@
 <?php 
-$batchDB['host'] = 'www.tomtalk.net';
+$batchDB['host'] = 'localhost';
 $batchDB['user'] = 'root';
-$batchDB['pwd']  = '';
+$batchDB['pwd']  = '890poi890poi';
 
 //end file 

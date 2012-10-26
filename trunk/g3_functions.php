@@ -3,6 +3,13 @@
  $Id: functions.php 325 2007-07-05 08:56:28Z legend $
 */
 
+function build_limit($page, $perpage)
+{
+    $page = $page <= 0 ? 1 : $page;
+
+    return " LIMIT " . ($page - 1) * $perpage . ", $perpage";
+}
+
 function load_class($class_file)
 {
     require_once SOURCES_PATH . $class_file;
@@ -235,7 +242,7 @@ function build_pagebar($total, $perpage, $page, $url)
     {
         if ($page == $i)
         {
-            $html .= "<li><a href=\"" . str_replace("__page__", $i, $url) . "\" class=\"current\">$i</a></li>";
+            $html .= "<li class=\"disabled\"><a href=\"" . str_replace("__page__", $i, $url) . "\">$i</a></li>";
         }
         else
         {
