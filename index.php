@@ -57,7 +57,7 @@ mysql_query( "set character set 'utf8'" );
             $app_category = $mem->get('app_category');
             if ( ! $app_category ) {
                 $rows = mysql_query($sql, $conn); 
-                $app_category = '<li><a href="./app-list.php">All</a>'; 
+                $app_category = '<li><a href="./?">All</a>'; 
                 while ( $row = mysql_fetch_array($rows) ) {
                     $app_category .= '<li><a href="?cat='.$row['primaryGenreName'].'">'.$row['primaryGenreName'].'</a>'; 
                 } 
@@ -80,9 +80,15 @@ $cat = (isset($_REQUEST['cat']) AND $_REQUEST['cat'] != '') ? $_REQUEST['cat'] :
 
 $where = ($cat == '' ? '' : " WHERE primaryGenreName='$cat' ");
 
-$date_order = (isset($_REQUEST['date_order']) AND $_REQUEST['date_order'] != '') ? $_REQUEST['date_order'] : ''; 
-
-$order_by = ($date_order == '' ? '' : " ORDER BY releaseDate $date_order ");
+$order = $_REQUEST['order']; 
+$order_by = '';
+if ($order == 'date') { 
+    $order_by = " ORDER BY releaseDate DESC";
+} else if ($order == 'price') { 
+    $order_by = " ORDER BY formattedPrice DESC";
+} else if ($order == 'rating') { 
+    $order_by = " ORDER BY averageUserRating DESC";
+}
 
 $sql  = "SELECT count(*) AS total FROM app $where";
 $rows = mysql_query($sql, $conn);
@@ -90,23 +96,24 @@ $total = mysql_fetch_array($rows);
 
 echo '<p>Sum of App : ' . $total['total'];
 
-$perpage = 20;
+$perpage = 10;
 $page = $_REQUEST['pg'] ? $_REQUEST['pg'] : 1;
 
-$sql  = "SELECT * FROM app $where " . build_limit($page, $perpage);
+$sql  = "SELECT * FROM app $where $order_by " . build_limit($page, $perpage); 
 
-
-$cat_list = $mem->get('w'.$cat.$page);
+$mem_key = 'w'.$cat.$order.$page;
+$cat_list = $mem->get($mem_key);
 if ( ! $cat_list) { 
+    //echo 'miss';
     $rows = mysql_query($sql, $conn); 
     $cat_list = '<table class="table">'; 
     
     $cat_list .= '<tr>';
     $cat_list .= '<td></td>';
-    $cat_list .= '<td><button class="btn btn-mini" type="button"></i>Release Date</button></td>';
+    $cat_list .= '<td><a href="./?cat='.$cat.'&order=date">Release Date</a></td>';
     $cat_list .= '<td></td>';
-    $cat_list .= '<td><button class="btn btn-mini" type="button"></i>Price</button></td>';
-    $cat_list .= '<td><button class="btn btn-mini" type="button"></i>Rating</button></td>';
+    $cat_list .= '<td><a href="./?cat='.$cat.'&order=price">Price</></td>';
+    $cat_list .= '<td><a href="./?cat='.$cat.'&order=rating">Rating</a></td>';
     $cat_list .= '</tr>';
     while ( $row = mysql_fetch_array($rows) ) {
         $cat_list .= '<tr>';
@@ -121,14 +128,15 @@ if ( ! $cat_list) {
         $cat_list .= '</tr>';
     } 
     $cat_list .= '</table>';
-    $mem->set('w'.$cat.$page, $cat_list, 0, 600); 
+    $mem->set($mem_key, $cat_list, 0, 600); 
 } else {
     //echo 'hit';
 }
 
 echo $cat_list;
 
-$url  = './?'. ($cat != '' ? 'cat='.$cat.'&' : '') .'pg=__page__';
+$url  = './?'. ($cat   != '' ? 'cat='   . $cat   .'&' : '') 
+             . ($order != '' ? 'order=' . $order .'&' : '') . 'pg=__page__';
 
 echo build_pagebar($total['total'], $perpage, $page, $url);
 
