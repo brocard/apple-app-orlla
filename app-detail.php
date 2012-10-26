@@ -36,8 +36,8 @@
   <body> 
 
     <?php 
-    require 'g3_functions.php'; 
     require 'config.php'; 
+    require 'functions.php'; 
     $conn = mysql_connect( $batchDB['host'], $batchDB['user'], $batchDB['pwd'] ) OR die( 1 );
     mysql_select_db('apple_app', $conn) OR die( 1 );
     mysql_query( "set character set 'utf8'" );

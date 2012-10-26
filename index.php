@@ -35,99 +35,114 @@
 
   <body> 
 
-    <div class="container">
+<?php 
+require 'config.php'; 
+require 'functions.php'; 
+$conn = mysql_connect( $batchDB['host'], $batchDB['user'], $batchDB['pwd'] ) OR die( 1 );
+mysql_select_db('apple_app', $conn) OR die( 1 );
+mysql_query( "set character set 'utf8'" );
+?>
 
-      <!-- Main hero unit for a primary marketing message or call to action -->
-      <div class="hero-unit">
-        <h3>abc</h3>
-        <h1>abc</h1>
-      </div>
-
-      <!-- Example row of columns -->
+  <div class="container">
       <div class="row">
-        <div class="span4">
-            <div class="control-group">
-                <label class="control-label" for="keyword">关键字</label>
-                <div class="controls">
-                <input type="text" id="keyword" placeholder="education">
-                <input type="text" id="limit" value="10" placeholder="num">
-                </div>
-            </div>
-            <div class="control-group">
-                <div class="controls">
-                    <button class="btn" onclick="itune_search();">搜索</button>
-                </div>
-            </div> 
-        </div>
-      </div>
-      <div id="result">123</div>
+        <div class="span3">
+            <h3>Category of App</h3>
+            <hr>
+            <?php
+            $mem = new Memcache; 
+            $mem->connect('localhost', 12000) or die ("Could not connect"); 
 
-      <hr>
+            $sql = 'SELECT DISTINCT primaryGenreName FROM app';
 
-      <footer>
-        <p>footer</p>        
-      </footer>
-
-    </div> <!-- /container -->
-
-    <!-- Le javascript
-    ================================================== -->
-    <!-- Placed at the end of the document so the pages load faster -->
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
-    <script src="js/bootstrap-transition.js"></script>
-    <script src="js/bootstrap-alert.js"></script>
-    <script src="js/bootstrap-modal.js"></script>
-    <script src="js/bootstrap-dropdown.js"></script>
-    <script src="js/bootstrap-scrollspy.js"></script>
-    <script src="js/bootstrap-tab.js"></script>
-    <script src="js/bootstrap-tooltip.js"></script>
-    <script src="js/bootstrap-popover.js"></script>
-    <script src="js/bootstrap-button.js"></script>
-    <script src="js/bootstrap-collapse.js"></script>
-    <script src="js/bootstrap-carousel.js"></script>
-    <script src="js/bootstrap-typeahead.js"></script>
-    <script>
-        function itune_search() {
-            var keyword = $('#keyword').val();
-            var limit = $('#limit').val();
-
-            $.getJSON('grab-itune.php', {keyword:keyword,limit:limit}, function(msg){
-
-                var html = 'result Count: ';
-                html += msg.resultCount;
-                html += '<br/>';
-
-                $.each(msg.results, function(i,item){
-                    html += '<div style="border:1px solid #DDD;padding:10px;margin:5px 0px;">';
-                    html += '<button class="btn" onclick="add_to_db(this, ' + item['trackId'] + ');">收录</button>'; 
-
-                    for (prop in item) {
-                        html += "<p><b>"+prop+"</b>" + ":" + item[prop] + '</p>';
-                    } 
-
-                    html += '</div>';
-
-                });
-
-
-                $('#result').html(html); 
-            });
-            
-        } 
-
-        function add_to_db(obj, trackId) {
-            $.get('add_to_db.php', {trackId:trackId}, function(msg){
-
-                if ( msg=='ok' ) {
-                    $(obj).html('已录'); 
-                } else {
-                    alert(msg);
+            $app_category = $mem->get('app_category');
+            if ( ! $app_category ) {
+                $rows = mysql_query($sql, $conn); 
+                $app_category = '<li><a href="./app-list.php">All</a>'; 
+                while ( $row = mysql_fetch_array($rows) ) {
+                    $app_category .= '<li><a href="?cat='.$row['primaryGenreName'].'">'.$row['primaryGenreName'].'</a>'; 
                 } 
 
-            });
-        }
+                $mem->set('app_category', $app_category, 0, 600); 
+            } else {
+                //echo 'hit';
+            }
 
+            echo $app_category; 
+            ?> 
+        </div><!--end span3-->
+
+        <div class="span9">
+
+
+<?php 
+
+$cat = (isset($_REQUEST['cat']) AND $_REQUEST['cat'] != '') ? $_REQUEST['cat'] : ''; 
+
+$where = ($cat == '' ? '' : " WHERE primaryGenreName='$cat' ");
+
+$date_order = (isset($_REQUEST['date_order']) AND $_REQUEST['date_order'] != '') ? $_REQUEST['date_order'] : ''; 
+
+$order_by = ($date_order == '' ? '' : " ORDER BY releaseDate $date_order ");
+
+$sql  = "SELECT count(*) AS total FROM app $where";
+$rows = mysql_query($sql, $conn);
+$total = mysql_fetch_array($rows);
+
+echo '<p>Sum of App : ' . $total['total'];
+
+$perpage = 20;
+$page = $_REQUEST['pg'] ? $_REQUEST['pg'] : 1;
+
+$sql  = "SELECT * FROM app $where " . build_limit($page, $perpage);
+
+
+$cat_list = $mem->get('w'.$cat.$page);
+if ( ! $cat_list) { 
+    $rows = mysql_query($sql, $conn); 
+    $cat_list = '<table class="table">'; 
+    
+    $cat_list .= '<tr>';
+    $cat_list .= '<td></td>';
+    $cat_list .= '<td><button class="btn btn-mini" type="button"></i>Release Date</button></td>';
+    $cat_list .= '<td></td>';
+    $cat_list .= '<td><button class="btn btn-mini" type="button"></i>Price</button></td>';
+    $cat_list .= '<td><button class="btn btn-mini" type="button"></i>Rating</button></td>';
+    $cat_list .= '</tr>';
+    while ( $row = mysql_fetch_array($rows) ) {
+        $cat_list .= '<tr>';
+        $cat_list .= '<td><a><img class="thumbnail" width="57px" height="57px" src="'.$row['artworkUrl60'].'" alt="" /></a></td>';
+        $cat_list .= '<td>';
+        $cat_list .= '<p><a href="app-detail.php?id='.$row['trackId'].'">'.$row['trackName'].'</a></p>';
+        $cat_list .= '<p>Release Date: ' . $row['releaseDate'];
+        $cat_list .= '</td>';
+        $cat_list .= '<td>'.$row['primaryGenreName'].'</td>';
+        $cat_list .= '<td>'.$row['formattedPrice'].'</td>';
+        $cat_list .= '<td>'.$row['averageUserRating'].'</td>'; 
+        $cat_list .= '</tr>';
+    } 
+    $cat_list .= '</table>';
+    $mem->set('w'.$cat.$page, $cat_list, 0, 600); 
+} else {
+    //echo 'hit';
+}
+
+echo $cat_list;
+
+$url  = './?'. ($cat != '' ? 'cat='.$cat.'&' : '') .'pg=__page__';
+
+echo build_pagebar($total['total'], $perpage, $page, $url);
+
+echo <<< html
+        </div><!--end span9-->
+      </div><!--end row-->
+    </div> <!-- /container -->
+    <script>
     </script>
 
-  </body> 
-</html> 
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+    <script src="js/bootstrap-scrollspy.js"></script>
+</body>
+</html>
+html;
+
+//end  file 
