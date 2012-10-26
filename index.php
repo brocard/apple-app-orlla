@@ -38,6 +38,8 @@
 <?php 
 require 'config.php'; 
 require 'functions.php'; 
+$miss_hit = false; //显示memcache是否命中信息
+
 $conn = mysql_connect( $batchDB['host'], $batchDB['user'], $batchDB['pwd'] ) OR die( 1 );
 mysql_select_db('apple_app', $conn) OR die( 1 );
 mysql_query( "set character set 'utf8'" );
@@ -53,32 +55,52 @@ mysql_query( "set character set 'utf8'" );
             $mem->connect('localhost', 12000) or die ("Could not connect"); 
 
             $sql = 'SELECT DISTINCT primaryGenreName FROM app';
+            $cat = (isset($_REQUEST['cat']) AND $_REQUEST['cat'] != '') ? $_REQUEST['cat'] : ''; 
 
-            $app_category = $mem->get('app_category');
+            $mem_key = 'cat_'.$cat; 
+            $app_category = $mem->get($mem_key);
             if ( ! $app_category ) {
+                if ($miss_hit) echo '<p>cat miss';
                 $rows = mysql_query($sql, $conn); 
-                $app_category = '<li><a href="./?">All</a>'; 
-                while ( $row = mysql_fetch_array($rows) ) {
-                    $app_category .= '<li><a href="?cat='.$row['primaryGenreName'].'">'.$row['primaryGenreName'].'</a>'; 
-                } 
 
-                $mem->set('app_category', $app_category, 0, 600); 
+                $app_category  = '<ul class="nav nav-list">'; 
+                $app_category .= '<li'. ($cat==''? ' class="active"':'') .'><a href="./?">All</a>'; 
+                while ( $row = mysql_fetch_array($rows) ) {
+                    $app_category .= '<li'.($cat==$row['primaryGenreName'] ? ' class="active"':'') .'>';
+                    $app_category .= '<a href="?cat='.$row['primaryGenreName'].'">' .$row['primaryGenreName'].'</a>'; 
+                } 
+                $app_category .= '</ul>'; 
+
+                $mem->set($mem_key, $app_category, 0, 600); 
             } else {
-                //echo 'hit';
+                if ($miss_hit) echo '<p>cat hit';
             }
 
             echo $app_category; 
+
+            $search_key = $_REQUEST['search_key'];
+
             ?> 
         </div><!--end span3-->
 
-        <div class="span9">
-
-
+        <div class="span9"> 
+            <form class="form-search" action="" method="get">
+                <div class="input-append">
+                <input type="hidden" value="<?php echo $cat; ?>" name="cat"> 
+                <input type="text" value="<?php echo $search_key; ?>" name="search_key" class="span3 search-query">
+                <button type="submit" class="btn">Search</button>
+                </div>
+            </form>
 <?php 
 
-$cat = (isset($_REQUEST['cat']) AND $_REQUEST['cat'] != '') ? $_REQUEST['cat'] : ''; 
-
 $where = ($cat == '' ? '' : " WHERE primaryGenreName='$cat' ");
+if ($search_key != '') {
+    if ($where == '') {
+        $where = " WHERE MATCH (trackName) AGAINST ('$search_key') ";
+    } else {
+        $where .= " AND MATCH (trackName) AGAINST ('$search_key') "; 
+    }
+}
 
 $order = $_REQUEST['order']; 
 $order_by = '';
@@ -91,8 +113,18 @@ if ($order == 'date') {
 }
 
 $sql  = "SELECT count(*) AS total FROM app $where";
-$rows = mysql_query($sql, $conn);
-$total = mysql_fetch_array($rows);
+//echo '<p>'.$sql;
+
+$mem_key = 's'.$cat.$search_key;
+$total = $mem->get($mem_key);
+if ( ! $total) { 
+    if ($miss_hit) echo '<p>cat miss';
+    $rows = mysql_query($sql, $conn);
+    $total = mysql_fetch_array($rows);
+    $mem->set($mem_key, $total, 0, 600); 
+} else {
+    if ($miss_hit) echo '<p>cat hit';
+}
 
 echo '<p>Sum of App : ' . $total['total'];
 
@@ -100,26 +132,41 @@ $perpage = 10;
 $page = $_REQUEST['pg'] ? $_REQUEST['pg'] : 1;
 
 $sql  = "SELECT * FROM app $where $order_by " . build_limit($page, $perpage); 
+//echo '<p>'.$sql;
 
-$mem_key = 'w'.$cat.$order.$page;
+$mem_key = 'w'.$cat.$order.$page.$search_key;
 $cat_list = $mem->get($mem_key);
 if ( ! $cat_list) { 
-    //echo 'miss';
+    if ($miss_hit) echo '<p>cat miss';
     $rows = mysql_query($sql, $conn); 
     $cat_list = '<table class="table">'; 
+
+    $url_param = '';
+    if ($cat != '') {
+        $url_param .= 'cat='.$cat.'&'; 
+    }
+    if ($search_key != '') {
+        $url_param .= 'search_key='.$search_key.'&'; 
+    }
     
     $cat_list .= '<tr>';
     $cat_list .= '<td></td>';
-    $cat_list .= '<td><a href="./?cat='.$cat.'&order=date">Release Date</a></td>';
+    $cat_list .= '<td><a href="./?'.$url_param.'order=date">Release Date</a></td>';
     $cat_list .= '<td></td>';
-    $cat_list .= '<td><a href="./?cat='.$cat.'&order=price">Price</></td>';
-    $cat_list .= '<td><a href="./?cat='.$cat.'&order=rating">Rating</a></td>';
+    $cat_list .= '<td><a href="./?'.$url_param.'order=price">Price</></td>';
+    $cat_list .= '<td><a href="./?'.$url_param.'order=rating">Rating</a></td>';
     $cat_list .= '</tr>';
     while ( $row = mysql_fetch_array($rows) ) {
         $cat_list .= '<tr>';
         $cat_list .= '<td><a><img class="thumbnail" width="57px" height="57px" src="'.$row['artworkUrl60'].'" alt="" /></a></td>';
         $cat_list .= '<td>';
-        $cat_list .= '<p><a href="app-detail.php?id='.$row['trackId'].'">'.$row['trackName'].'</a></p>';
+        $cat_list .= '<p><a href="app-detail.php?id='.$row['trackId'].'">';
+        if ($search_key != '') {
+            $cat_list .= str_ireplace($search_key, "<b>$search_key</b>", $row['trackName']);
+        } else {
+            $cat_list .= $row['trackName'];
+        }
+        $cat_list .= '</a></p>';
         $cat_list .= '<p>Release Date: ' . $row['releaseDate'];
         $cat_list .= '</td>';
         $cat_list .= '<td>'.$row['primaryGenreName'].'</td>';
@@ -130,13 +177,14 @@ if ( ! $cat_list) {
     $cat_list .= '</table>';
     $mem->set($mem_key, $cat_list, 0, 600); 
 } else {
-    //echo 'hit';
+    if ($miss_hit) echo '<p>cat hit';
 }
 
 echo $cat_list;
 
-$url  = './?'. ($cat   != '' ? 'cat='   . $cat   .'&' : '') 
-             . ($order != '' ? 'order=' . $order .'&' : '') . 'pg=__page__';
+$url  = './?'. ($cat        != '' ? 'cat='        . $cat   .'&' : '') 
+             . ($search_key != '' ? 'search_key=' . $search_key .'&' : '') 
+             . ($order      != '' ? 'order='      . $order .'&' : '') . 'pg=__page__';
 
 echo build_pagebar($total['total'], $perpage, $page, $url);
 
