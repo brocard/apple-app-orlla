@@ -57,7 +57,7 @@ mysql_query( "set character set 'utf8'" );
             $app_category = $mem->get('app_category');
             if ( ! $app_category ) {
                 $rows = mysql_query($sql, $conn); 
-                $app_category = '<li><a href="?">All</a>'; 
+                $app_category = '<li><a href="./app-list.php">All</a>'; 
                 while ( $row = mysql_fetch_array($rows) ) {
                     $app_category .= '<li><a href="?cat='.$row['primaryGenreName'].'">'.$row['primaryGenreName'].'</a>'; 
                 } 
@@ -78,7 +78,11 @@ mysql_query( "set character set 'utf8'" );
 
 $cat = (isset($_REQUEST['cat']) AND $_REQUEST['cat'] != '') ? $_REQUEST['cat'] : ''; 
 
-$where = $cat == '' ? '' : " WHERE primaryGenreName='$cat' ";
+$where = ($cat == '' ? '' : " WHERE primaryGenreName='$cat' ");
+
+$date_order = (isset($_REQUEST['date_order']) AND $_REQUEST['date_order'] != '') ? $_REQUEST['date_order'] : ''; 
+
+$order_by = ($date_order == '' ? '' : " ORDER BY releaseDate $date_order ");
 
 $sql  = "SELECT count(*) AS total FROM app $where";
 $rows = mysql_query($sql, $conn);
@@ -86,33 +90,45 @@ $total = mysql_fetch_array($rows);
 
 echo '<p>Sum of App : ' . $total['total'];
 
-$perpage = 10;
+$perpage = 20;
+$page = $_REQUEST['pg'] ? $_REQUEST['pg'] : 1;
 
-$sql  = "SELECT * FROM app $where limit $perpage";
+$sql  = "SELECT * FROM app $where " . build_limit($page, $perpage);
 
-$cat_list = $mem->get('w'.$cat);
+
+$cat_list = $mem->get('w'.$cat.$page);
 if ( ! $cat_list) { 
     $rows = mysql_query($sql, $conn); 
     $cat_list = '<table class="table">'; 
+    
+    $cat_list .= '<tr>';
+    $cat_list .= '<td></td>';
+    $cat_list .= '<td><button class="btn btn-mini" type="button"></i>Release Date</button></td>';
+    $cat_list .= '<td></td>';
+    $cat_list .= '<td><button class="btn btn-mini" type="button"></i>Price</button></td>';
+    $cat_list .= '<td><button class="btn btn-mini" type="button"></i>Rating</button></td>';
+    $cat_list .= '</tr>';
     while ( $row = mysql_fetch_array($rows) ) {
         $cat_list .= '<tr>';
         $cat_list .= '<td><a><img class="thumbnail" width="57px" height="57px" src="'.$row['artworkUrl60'].'" alt="" /></a></td>';
-        $cat_list .= '<td><a href="app-detail.php?id='.$row['trackId'].'">'.$row['trackName'].'</a></td>';
+        $cat_list .= '<td>';
+        $cat_list .= '<p><a href="app-detail.php?id='.$row['trackId'].'">'.$row['trackName'].'</a></p>';
+        $cat_list .= '<p>Release Date: ' . $row['releaseDate'];
+        $cat_list .= '</td>';
         $cat_list .= '<td>'.$row['primaryGenreName'].'</td>';
         $cat_list .= '<td>'.$row['formattedPrice'].'</td>';
         $cat_list .= '<td>'.$row['averageUserRating'].'</td>'; 
         $cat_list .= '</tr>';
     } 
     $cat_list .= '</table>';
-    $mem->set('w'.$cat, $cat_list, 0, 600); 
+    $mem->set('w'.$cat.$page, $cat_list, 0, 600); 
 } else {
     //echo 'hit';
 }
 
 echo $cat_list;
 
-$page=1;
-$url='';
+$url  = './app-list.php?'. ($cat != '' ? 'cat='.$cat.'&' : '') .'pg=__page__';
 
 echo build_pagebar($total['total'], $perpage, $page, $url);
 
