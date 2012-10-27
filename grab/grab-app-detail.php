@@ -1,23 +1,76 @@
 <?php
 set_time_limit(0);
 
-require 'functions.php';
-require 'config.php';
+require '../functions.php';
 require 'app_ids.php';
 
-$conn = mysql_connect( $batchDB['host'], $batchDB['user'], $batchDB['pwd'] ) OR die( 1 );
-mysql_select_db('apple_app', $conn) OR die( 1 );
-mysql_query( "set character set 'utf8'" );
+$pick_new = false;
+//去除，数据库中已有的APP 
+if ($pick_new) {
+    $conn = mysql_connect('localhost', 'root', '') OR die( 1 );
+    mysql_select_db('apple_app', $conn) OR die( 1 );
+    mysql_query( "set character set 'utf8'" );
 
-$i = 1;
-foreach ($app_ids as $id => $count) {
-    $url = "http://itunes.apple.com/lookup?id=$id";
-    $app_detail = get_site_content($url); 
-    $app_detail = json_decode($app_detail);
-    if ($app_detail->resultCount == 0) {
-        unset($app_ids[$id]);
-        continue;
+    $sql = "SELECT trackId FROM app";
+    $rows = mysql_query($sql, $conn);
+    while ($row = mysql_fetch_array($rows)) {
+        echo '.';
+        if (isset($app_ids[$row['trackId']])) {
+            unset($app_ids[$row['trackId']]);
+        }
     }
+    echo "\n";
+    file_put_contents('app_ids.php', '<?php $app_ids = '. var_export($app_ids, TRUE) . ';');
+    mysql_close($conn);
+}
+
+$i = 0;
+$pids = array();
+foreach ($app_ids as $id => $count) {
+    $i++;
+    $url = "http://itunes.apple.com/lookup?id=$id";
+
+    $j = pcntl_fork();/// 产生子进程
+    $pids[] = $j;
+
+    if ( ! $j) { 
+        $app_detail = get_site_content($url); 
+        $app_detail = json_decode($app_detail);
+        if ($app_detail->resultCount == 0) {
+            echo 'null ';
+            exit;
+        }
+        $sql = grab_app_detail($app_detail); 
+        //file_put_contents('app.sql', $sql."\n", FILE_APPEND);
+        
+        $conn = mysql_connect('localhost', 'root', '') OR die( 1 );
+        mysql_select_db('apple_app', $conn) OR die( 1 );
+        mysql_query( "set character set 'utf8'" );
+
+        if ( ! mysql_query($sql, $conn)) {
+            echo "$id insert failure\n";
+            //echo $sql."\n";
+            //file_put_contents('failure_ids.php', $id."\n", FILE_APPEND);
+        } else {
+            echo $i.' ';
+        } 
+
+        mysql_close($conn); 
+        exit;
+    }
+
+    if (count($pids) == 50) { 
+        echo "\n\n";
+        foreach ($pids as $pid) {
+            pcntl_waitpid($pid, $status, WUNTRACED);
+        }
+        $pids = array();
+    }
+}
+
+echo "\nfinished!\n";
+
+function grab_app_detail($app_detail) {
 
     $app_detail = $app_detail->results;
     $app_detail = $app_detail[0];
@@ -31,7 +84,7 @@ foreach ($app_ids as $id => $count) {
     $screenshotUrls = json_encode($app_detail->screenshotUrls); 
     unset($app_detail->screenshotUrls);
 
-    $genres= json_encode($app_detail->genres); 
+    $genres= mysql_escape_string(json_encode($app_detail->genres)); 
     unset($app_detail->genres);
 
     $genreIds= json_encode($app_detail->genreIds); 
@@ -57,7 +110,7 @@ foreach ($app_ids as $id => $count) {
     $artistName          = mysql_escape_string($app_detail->artistName) ; unset($app_detail->artistName)          ;
     $price               = $app_detail->price                           ; unset($app_detail->price)               ;
 
-    $version               = $app_detail->version                                ; unset($app_detail->version              ) ;
+    $version               = mysql_escape_string($app_detail->version);                                ; unset($app_detail->version              ) ;
     $releaseDate           = $app_detail->releaseDate                            ; unset($app_detail->releaseDate          ) ;
     $sellerName            = mysql_escape_string($app_detail->sellerName)        ; unset($app_detail->sellerName           ) ;
     $currency              = $app_detail->currency                               ; unset($app_detail->currency             ) ;
@@ -84,20 +137,12 @@ foreach ($app_ids as $id => $count) {
 
     $sql = "INSERT INTO app ( releaseNotes, averageUserRatingForCurrentVersion, userRatingCountForCurrentVersion, averageUserRating, userRatingCount, version, releaseDate, sellerName, currency, bundleId, trackId, trackName, primaryGenreName, primaryGenreId, wrapperType, trackCensoredName, trackViewUrl, contentAdvisoryRating, artworkUrl100, fileSizeBytes, sellerUrl, formattedPrice, trackContentRating, artistName, artistId, artistViewUrl, artworkUrl512, isGameCenterEnabled, artworkUrl60, price, languageCodesISO2A, ipadScreenshotUrls, supportedDevices, features, genreIds, genres, kind, screenshotUrls, description) 
         VALUES ( '$releaseNotes', '$averageUserRatingForCurrentVersion', '$userRatingCountForCurrentVersion', '$averageUserRating', '$userRatingCount', '$version', '$releaseDate', '$sellerName', '$currency', '$bundleId', '$trackId', '$trackName', '$primaryGenreName', '$primaryGenreId', '$wrapperType', '$trackCensoredName', '$trackViewUrl', '$contentAdvisoryRating', '$artworkUrl100', $fileSizeBytes, '$sellerUrl', '$formattedPrice', '$trackContentRating', '$artistName', '$artistId', '$artistViewUrl', '$artworkUrl512', '$isGameCenterEnabled', '$artworkUrl60', price, '$languageCodesISO2A', '$ipadScreenshotUrls', '$supportedDevices', '$features', '$genreIds', '$genres', '$kind', '$screenshotUrls', '$description')";
-    //echo $sql;
-
-    if ( ! mysql_query($sql, $conn)) {
-        echo $id . ' insert failure'."\n";
-        //echo $sql;
-        //exit;
-    } else {
-        unset($app_ids[$id]);
-        echo $i++ . '   ';
-        file_put_contents('app_ids.php', '<?php $app_ids = '. var_export($app_ids, TRUE) . ';');
-    } 
+    return $sql; 
 }
 
-echo "finished!\n";
+
+
+
 
 
 //end  file 
