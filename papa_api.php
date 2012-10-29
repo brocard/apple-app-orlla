@@ -21,6 +21,16 @@ if ( $op == 'add_to_papa') {
         add_to_papa($row['trackId'], $conn);
     } 
     echo '<p>finish!';
+} else if ($op == 'humit_info_save') {
+    $trackId = $_REQUEST['trackId'];
+    $humit   = $_REQUEST['humit'];
+    $gender  = $_REQUEST['gender'];
+    $age     = implode(', ', $_REQUEST['age']);
+
+    $sql = "UPDATE humit SET humit='$humit', gender='$gender', age='$age' "
+         . "WHERE trackId=$trackId";
+    mysql_query($sql, $conn); 
+    echo 'ok'; 
 }
 
 mysql_close($conn);
