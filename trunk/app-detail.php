@@ -51,21 +51,33 @@
     $conn = mysql_connect( $batchDB['host'], $batchDB['user'], $batchDB['pwd'] ) OR die( 1 );
     mysql_select_db('apple_app', $conn) OR die( 1 );
     mysql_query( "set character set 'utf8'" );
+
+    $trackId = (isset($_REQUEST['id']) AND $_REQUEST['id'] != '') ? $_REQUEST['id'] : ''; 
+
+    $sql  = "SELECT * FROM $app_tb Where trackId='$trackId'";
+    $rows = mysql_query($sql, $conn); 
+    $row = mysql_fetch_array($rows);
     ?>
 
   <div class="container">
       <div class="row">
+        <div class="span12"> 
+            <ul class="breadcrumb">
+            <li><a href="/itune">Home</a> <span class="divider">/</span></li>
+            <li><a href="/itune/?cat=<?=$row['primaryGenreName']?>"><?=$row['primaryGenreName']?></a> <span class="divider">/</span></li>
+            <li class="active"><?=$row['trackName']?></li>
+            </ul>
+        </div>
+      
+      </div>
+
+      <div class="row">
         <div class="span9"> 
         <?php 
-        $trackId = (isset($_REQUEST['id']) AND $_REQUEST['id'] != '') ? $_REQUEST['id'] : ''; 
-
-        $sql  = "SELECT * FROM $app_tb Where trackId='$trackId'";
-        $rows = mysql_query($sql, $conn); 
 
         echo '<table class="table">'; 
-        $row = mysql_fetch_array($rows);
         echo '<tr>';
-        echo '<td width="1px;"><a><img width="512px" height="512px" src="'.$row['artworkUrl512'].'" alt="" /></a></td>';
+        echo '<td width="1px;"><a><img width="256px" height="256px" src="'.$row['artworkUrl512'].'" alt="" /></a></td>';
         echo '<td>';
         echo '<h2>'.$row['trackName'].'</h2>';
         echo '<p>Category : '.$row['primaryGenreName'].'</p>';
@@ -106,14 +118,15 @@
         </div><!--end span9-->
 
         <div class="span3"> 
-            <div style="border:1px solid #ddd;padding:10px;">
+
+            <div style="<?=($app_tb == 'app' ? 'display:none;' : '')?>border:1px solid #ddd;padding:10px;">
                 <h3>Humit Info</h3>
 
                 <form class="form-horizontal">
                     <div class="control-group">
                         <label class="control-label">Category:</label>
                         <div class="controls">
-                        <select class="span1">
+                        <select class="span1" id="humit">
                             <option value="Brain">Brain</option>
                             <option value="Puzzle">Puzzle</option>
                             <option value="Math">Math</option>
@@ -124,7 +137,7 @@
                     <div class="control-group">
                         <label class="control-label">Gender: </label>
                         <div class="controls">
-                        <select class="span1">
+                        <select class="span1" id="gender">
                             <option value="Both">Both</option>
                             <option value="Boys">Boys</option>
                             <option value="Girls">Girls</option>
@@ -135,22 +148,22 @@
                     <div class="control-group"> 
                         <label class="control-label">Age: </label>
                         <div class="controls">
-                        <input type="checkbox"> 0-1 <br />
-                        <input type="checkbox"> 1 <br />
-                        <input type="checkbox"> 2 <br />
-                        <input type="checkbox"> 3 <br />
-                        <input type="checkbox"> 4 <br />
-                        <input type="checkbox"> 5 <br />
-                        <input type="checkbox"> 6 <br />
-                        <input type="checkbox"> 7 <br />
-                        <input type="checkbox"> 8 <br />
-                        <input type="checkbox"> 9+ <br />
+                        <input type="checkbox" name="age" value="0"> 0-1 <br />
+                        <input type="checkbox" name="age" value="1"> 1 <br />
+                        <input type="checkbox" name="age" value="2"> 2 <br />
+                        <input type="checkbox" name="age" value="3"> 3 <br />
+                        <input type="checkbox" name="age" value="4"> 4 <br />
+                        <input type="checkbox" name="age" value="5"> 5 <br />
+                        <input type="checkbox" name="age" value="6"> 6 <br />
+                        <input type="checkbox" name="age" value="7"> 7 <br />
+                        <input type="checkbox" name="age" value="8"> 8 <br />
+                        <input type="checkbox" name="age" value="9"> 9+ <br />
                         </div>
                     </div>
 
                     <div class="control-group"> 
                         <div class="controls">
-                        <button class="btn" onclick="humit_save();">Save</button>
+                        <span class="btn" onclick="humit_save(this, <?=$row['trackId']?>);">Save</span>
                         </div>
                     </div>
 
@@ -172,9 +185,30 @@
     </div> <!-- /container -->
 
     <script>
-    function humit_save() {
-        alert('save');
-        return;
+    function humit_save(obj, trackId) {
+        var humit  = $('#humit').val();
+        var gender = $('#gender').val();
+        var age    = [];  
+        $('input[name="age"]:checked').each(function(){  
+            age.push($(this).val());  
+        });  
+
+        if (age.length == 0) {
+            alert('Selecting ages please！');  
+            return false;
+        } else if (age.length > 3) {
+            alert("Age option can't more than 3");  
+            return false;
+        } 
+
+        $.get('papa_api.php', {op : 'humit_info_save', trackId : trackId, humit : humit, gender : gender, age : age}, function(msg) {
+            if ($.trim(msg) == 'ok') {
+                $(obj).html('Saved'); 
+            } else {
+                alert('save failure!');
+                console.log(msg);
+            }
+        });
     }
     </script>
 
