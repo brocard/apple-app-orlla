@@ -4,6 +4,24 @@
 */
 
 /**
+ * 选择使用哪一个app数据库表：
+ * app  : apple app 数据表
+ * papa : 挑选出的app数据表
+ */
+function select_app_tb() {
+    if ($_REQUEST['app_tb'] == '') { 
+        if ($_SESSION['app_tb'] == '') {
+            $_SESSION['app_tb'] = 'app';
+        }
+    } else {
+        $_SESSION['app_tb'] = $_REQUEST['app_tb'];
+    }
+
+    return $_SESSION['app_tb'];
+}
+
+
+/**
  * 抓取网页内容
  */
 function get_site_content($url) { 
