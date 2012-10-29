@@ -11,7 +11,7 @@
     <link href="css/bootstrap.css" rel="stylesheet">
     <style type="text/css">
       body {
-        padding-top: 60px;
+        padding-top: 60px !important;
         padding-bottom: 40px;
       }
       .hero-unit {
@@ -44,8 +44,6 @@ $app_tb = select_app_tb();
   <div class="container">
       <div class="row">
         <div class="span12">
-        <a href="./?app_tb=app">apple</a>
-        <a href="./?app_tb=papa">papa</a>
         </div>
       </div>
 
@@ -60,8 +58,11 @@ mysql_query( "set character set 'utf8'" );
 
       <div class="row">
         <div class="span3">
-            <h3>Category of App</h3>
-            <hr>
+            <ul class="nav nav-tabs">
+                <li<?=($app_tb == 'app'  ? ' class="active" ' : '')?>><a href="./?app_tb=app">apple</a>
+                <li<?=($app_tb == 'papa' ? ' class="active" ' : '')?>><a href="./?app_tb=papa">papa</a>
+            </ul>
+
             <?php
             $mem = new Memcache; 
             $mem->connect('localhost', 12000) or die ("Could not connect"); 
