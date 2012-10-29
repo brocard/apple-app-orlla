@@ -33,11 +33,23 @@
     <link rel="apple-touch-icon-precomposed" href="../assets/ico/apple-touch-icon-57-precomposed.png">
   </head>
 
-  <body> 
-
 <?php 
 require 'config.php'; 
 require 'functions.php'; 
+
+$app_tb = select_app_tb();
+?>
+
+  <body> 
+  <div class="container">
+      <div class="row">
+        <div class="span12">
+        <a href="./?app_tb=app">apple</a>
+        <a href="./?app_tb=papa">papa</a>
+        </div>
+      </div>
+
+<?php 
 $miss_hit = false; //显示memcache是否命中信息
 
 $conn = mysql_connect( $batchDB['host'], $batchDB['user'], $batchDB['pwd'] ) OR die( 1 );
@@ -45,7 +57,7 @@ mysql_select_db('apple_app', $conn) OR die( 1 );
 mysql_query( "set character set 'utf8'" );
 ?>
 
-  <div class="container">
+
       <div class="row">
         <div class="span3">
             <h3>Category of App</h3>
@@ -54,10 +66,10 @@ mysql_query( "set character set 'utf8'" );
             $mem = new Memcache; 
             $mem->connect('localhost', 12000) or die ("Could not connect"); 
 
-            $sql = 'SELECT DISTINCT primaryGenreName FROM app';
+            $sql = "SELECT DISTINCT primaryGenreName FROM $app_tb";
             $cat = (isset($_REQUEST['cat']) AND $_REQUEST['cat'] != '') ? $_REQUEST['cat'] : ''; 
 
-            $mem_key = 'cat_'.$cat; 
+            $mem_key = $app_tb.'_cat_'.$cat; 
             $app_category = $mem->get($mem_key);
             if ( ! $app_category ) {
                 if ($miss_hit) echo '<p>cat miss';
@@ -112,10 +124,10 @@ if ($order == 'date') {
     $order_by = " ORDER BY averageUserRating DESC";
 }
 
-$sql  = "SELECT count(*) AS total FROM app $where";
+$sql  = "SELECT count(*) AS total FROM $app_tb $where";
 //echo '<p>'.$sql;
 
-$mem_key = 's'.$cat.$search_key;
+$mem_key = $app_tb.'_sum_'.$cat.$search_key;
 $total = $mem->get($mem_key);
 if ( ! $total) { 
     if ($miss_hit) echo '<p>cat miss';
@@ -127,14 +139,17 @@ if ( ! $total) {
 }
 
 echo '<p>Sum of App : ' . $total['total'];
+if ($search_key != '' and $app_tb == 'app') {
+    echo '<span style="margin-left:30px;"><a target="_blank" href="./papa_api.php?op=add_search_to_papa&search=' . $search_key . '">Add to PaPa</a></span>';
+}
 
 $perpage = 10;
 $page = $_REQUEST['pg'] ? $_REQUEST['pg'] : 1;
 
-$sql  = "SELECT * FROM app $where $order_by " . build_limit($page, $perpage); 
+$sql  = "SELECT * FROM $app_tb $where $order_by " . build_limit($page, $perpage); 
 //echo '<p>'.$sql;
 
-$mem_key = 'w'.$cat.$order.$page.$search_key;
+$mem_key = $app_tb.'_list_'.$cat.$order.$page.$search_key;
 $cat_list = $mem->get($mem_key);
 if ( ! $cat_list) { 
     if ($miss_hit) echo '<p>cat miss';
@@ -169,7 +184,11 @@ if ( ! $cat_list) {
         $cat_list .= '</a></p>';
         $cat_list .= '<p>Release Date: ' . $row['releaseDate'];
         $cat_list .= '</td>';
-        $cat_list .= '<td>'.$row['primaryGenreName'].'</td>';
+        $cat_list .= '<td><p>'.$row['primaryGenreName'];
+        if ($app_tb == 'app') {
+            $cat_list .= '<p><button onclick="add_to_papa(this, '.$row['trackId'].');">Add to PaPa</button>';
+        }
+        $cat_list .= '</td>';
         $cat_list .= '<td>'.$row['formattedPrice'].'</td>';
         $cat_list .= '<td>'.$row['averageUserRating'].'</td>'; 
         $cat_list .= '</tr>';
@@ -193,6 +212,17 @@ echo <<< html
       </div><!--end row-->
     </div> <!-- /container -->
     <script>
+    function add_to_papa(obj, trackId) {
+        $.get('./papa_api.php', {op: 'add_to_papa', trackId: trackId}, function(msg) {
+            if ($.trim(msg) == 'ok') { 
+                $(obj).html('Add Ok'); 
+            } else {
+                alert('运用加入PaPa不成功！稍后再试。');
+                console.log(msg);
+            }
+        });
+
+    }
     </script>
 
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
