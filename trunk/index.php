@@ -31,14 +31,7 @@
     <link rel="apple-touch-icon-precomposed" sizes="114x114" href="../assets/ico/apple-touch-icon-114-precomposed.png">
     <link rel="apple-touch-icon-precomposed" sizes="72x72" href="../assets/ico/apple-touch-icon-72-precomposed.png">
     <link rel="apple-touch-icon-precomposed" href="../assets/ico/apple-touch-icon-57-precomposed.png">
-  </head>
-
-<?php 
-require 'config.php'; 
-require 'functions.php'; 
-
-$app_tb = select_app_tb();
-?>
+  </head> 
 
   <body> 
   <div class="container">
@@ -48,80 +41,26 @@ $app_tb = select_app_tb();
       </div>
 
 <?php 
-$miss_hit = false; //显示memcache是否命中信息
+require 'config.php'; 
+require 'functions.php'; 
+
+$app_tb   = select_app_tb();
 
 $conn = mysql_connect( $batchDB['host'], $batchDB['user'], $batchDB['pwd'] ) OR die( 1 );
 mysql_select_db('apple_app', $conn) OR die( 1 );
 mysql_query( "set character set 'utf8'" );
 
-$tag = $_request['tag']; 
-?>
+$mem = new Memcache; 
+$mem->connect('localhost', 12000) or die ("Could not connect"); 
+$miss_hit = false;      //是否显示memcache命中信息
 
-
+$tag = $_REQUEST['tag']; 
+$cat = (isset($_REQUEST['cat']) AND $_REQUEST['cat'] != '') ? $_REQUEST['cat'] : ''; 
+$search_key = $_REQUEST['search_key'];
+?> 
       <div class="row">
         <div class="span3">
-            <ul class="nav nav-tabs">
-                <li<?=($app_tb == 'app'  ? ' class="active" ' : '')?>><a href="./?app_tb=app">apple</a>
-                <?php 
-                if ($app_tb == 'papa') {
-                    if (isset($_REQUEST['tag'])) {
-                        echo '<li><a href="./?app_tb=papa">papa</a>';
-                        echo '<li class="active"><a href="./?tag=">tags</a>'; 
-                    } else {
-                        echo '<li class="active"><a href="./?app_tb=papa">papa</a>';
-                        echo '<li><a href="./?tag=">tags</a>'; 
-                    }
-                } else {
-                    echo '<li><a href="./?app_tb=papa">papa</a>';
-                }
-                ?>
-            </ul>
-
-            <?php
-            $cat = (isset($_REQUEST['cat']) AND $_REQUEST['cat'] != '') ? $_REQUEST['cat'] : ''; 
-            $mem = new Memcache; 
-            $mem->connect('localhost', 12000) or die ("Could not connect"); 
-
-            if (isset($_REQUEST['tag'])) {
-                $sql = "SELECT * FROM tags"; 
-                $rows = mysql_query($sql, $conn); 
-                echo '<ul class="nav nav-list">'; 
-                while ( $row = mysql_fetch_array($rows) ) {
-                    echo '<li>';
-                    echo '<a href="#">' .$row['tag'].'</a>'; 
-                } 
-
-                echo '</ul>'; 
-
-                echo '<br/><input type="text">';
-                echo '<span class="btn" onclick="add_tag(this);">Add Tag</span>'; 
-            } else { 
-                $sql = "SELECT DISTINCT primaryGenreName FROM $app_tb"; 
-                $mem_key = $app_tb.'_cat_'.$cat; 
-                $app_category = $mem->get($mem_key);
-                if ( ! $app_category ) {
-                    if ($miss_hit) echo '<p>cat miss';
-                    $rows = mysql_query($sql, $conn); 
-
-                    $app_category  = '<ul class="nav nav-list">'; 
-                    $app_category .= '<li'. ($cat==''? ' class="active"':'') .'><a href="./?">All</a>'; 
-                    while ( $row = mysql_fetch_array($rows) ) {
-                        $app_category .= '<li'.($cat==$row['primaryGenreName'] ? ' class="active"':'') .'>';
-                        $app_category .= '<a href="?cat='.$row['primaryGenreName'].'">' .$row['primaryGenreName'].'</a>'; 
-                    } 
-                    $app_category .= '</ul>'; 
-
-                    $mem->set($mem_key, $app_category, 0, 600); 
-                } else {
-                    if ($miss_hit) echo '<p>cat hit';
-                }
-
-                echo $app_category; 
-            }
-
-            $search_key = $_REQUEST['search_key'];
-
-            ?> 
+            <?php include 'left_nav.tpl.php'; ?> 
         </div><!--end span3-->
 
         <div class="span9"> 
@@ -133,110 +72,52 @@ $tag = $_request['tag'];
                 </div>
             </form>
 <?php 
-
-$where = ($cat == '' ? '' : " WHERE primaryGenreName='$cat' ");
-if ($search_key != '') {
-    if ($where == '') {
-        $where = " WHERE MATCH (trackName) AGAINST ('$search_key') ";
+if (isset($_REQUEST['tag'])) {
+    if ($tag == '') {
+        //
     } else {
-        $where .= " AND MATCH (trackName) AGAINST ('$search_key') "; 
+        $sql  = "SELECT * FROM tags WHERE tag = '$tag'"; 
+        $rows = mysql_query($sql, $conn); 
+        $tag_id = mysql_fetch_array($rows);
+        $tag_id = $tag_id['id'];
+
+        $sql  = "SELECT COUNT(*) AS total FROM tag_for_app WHERE tag_id = $tag_id"; 
+        $rows = mysql_query($sql, $conn); 
+        $total = mysql_fetch_array($rows);
+        echo '<p>Sum of App : ' . $total['total'];
     }
-}
-
-$order = $_REQUEST['order']; 
-$order_by = '';
-if ($order == 'date') { 
-    $order_by = " ORDER BY releaseDate DESC";
-} else if ($order == 'price') { 
-    $order_by = " ORDER BY formattedPrice DESC";
-} else if ($order == 'rating') { 
-    $order_by = " ORDER BY averageUserRating DESC";
-}
-
-$sql  = "SELECT count(*) AS total FROM $app_tb $where";
-echo '<p>'.$sql;
-
-$mem_key = $app_tb.'_sum_'.$cat.$search_key;
-$total = $mem->get($mem_key);
-if ( ! $total) { 
-    if ($miss_hit) echo '<p>cat miss';
-    $rows = mysql_query($sql, $conn);
-    $total = mysql_fetch_array($rows);
-    $mem->set($mem_key, $total, 0, 600); 
 } else {
-    if ($miss_hit) echo '<p>cat hit';
-}
-
-echo '<p>Sum of App : ' . $total['total'];
-if ($search_key != '' and $app_tb == 'app') {
-    echo '<span style="margin-left:30px;"><a target="_blank" href="./papa_api.php?op=add_search_to_papa&search=' . $search_key . '">Add to PaPa</a></span>';
-} 
-
-$perpage = 10;
-$page = $_REQUEST['pg'] ? $_REQUEST['pg'] : 1;
-
-$sql  = "SELECT * FROM $app_tb $where $order_by " . build_limit($page, $perpage); 
-echo '<p>'.$sql;
-
-$mem_key = $app_tb.'_list_'.$cat.$order.$page.$search_key;
-$cat_list = $mem->get($mem_key);
-if ( ! $cat_list) { 
-    if ($miss_hit) echo '<p>cat miss';
-    $rows = mysql_query($sql, $conn); 
-    $cat_list = '<table class="table">'; 
-
-    $url_param = '';
-    if ($cat != '') {
-        $url_param .= 'cat='.$cat.'&'; 
-    }
+    $where = ($cat == '' ? '' : " WHERE primaryGenreName='$cat' ");
     if ($search_key != '') {
-        $url_param .= 'search_key='.$search_key.'&'; 
-    }
-    
-    $cat_list .= '<tr>';
-    $cat_list .= '<td></td>';
-    $cat_list .= '<td><a href="./?'.$url_param.'order=date">Release Date</a></td>';
-    $cat_list .= '<td></td>';
-    $cat_list .= '<td><a href="./?'.$url_param.'order=price">Price</></td>';
-    $cat_list .= '<td><a href="./?'.$url_param.'order=rating">Rating</a></td>';
-    $cat_list .= '</tr>';
-    while ( $row = mysql_fetch_array($rows) ) {
-        $cat_list .= '<tr>';
-        $cat_list .= '<td><a><img class="thumbnail" width="57px" height="57px" src="'.$row['artworkUrl60'].'" alt="" /></a></td>';
-        $cat_list .= '<td>';
-        $cat_list .= '<p><a href="app-detail.php?id='.$row['trackId'].'">';
-        if ($search_key != '') {
-            $cat_list .= str_ireplace($search_key, "<b>$search_key</b>", $row['trackName']);
+        if ($where == '') {
+            $where = " WHERE MATCH (trackName) AGAINST ('$search_key') ";
         } else {
-            $cat_list .= $row['trackName'];
+            $where .= " AND MATCH (trackName) AGAINST ('$search_key') "; 
         }
-        $cat_list .= '</a></p>';
-        $cat_list .= '<p>Release Date: ' . $row['releaseDate'];
-        $cat_list .= '</td>';
-        $cat_list .= '<td><p>'.$row['primaryGenreName'];
-        if ($app_tb == 'app') {
-            $cat_list .= '<p><button onclick="add_to_papa(this, '.$row['trackId'].');">Add to PaPa</button>';
-        }
-        $cat_list .= '</td>';
-        $cat_list .= '<td>'.$row['formattedPrice'].'</td>';
-        $cat_list .= '<td>'.$row['averageUserRating'].'</td>'; 
-        $cat_list .= '</tr>';
     } 
-    $cat_list .= '</table>';
-    $mem->set($mem_key, $cat_list, 0, 600); 
-} else {
-    if ($miss_hit) echo '<p>cat hit';
+
+    $sql  = "SELECT count(*) AS total FROM $app_tb $where";
+
+    $mem_key = $app_tb.'_sum_'.$cat.$search_key;
+    $total = $mem->get($mem_key);
+    if ( ! $total) { 
+        if ($miss_hit) echo '<p>cat miss';
+        $rows = mysql_query($sql, $conn);
+        $total = mysql_fetch_array($rows);
+        $mem->set($mem_key, $total, 0, 600); 
+    } else {
+        if ($miss_hit) echo '<p>cat hit';
+    }
+
+    echo '<p>Sum of App : ' . $total['total'];
+    if ($search_key != '' and $app_tb == 'app') {
+        echo '<span style="margin-left:30px;"><a target="_blank" href="./papa_api.php?op=add_search_to_papa&search=' . $search_key . '">Add to PaPa</a></span>';
+    } 
 }
 
-echo $cat_list;
+include 'app_list.tpl.php';
 
-$url  = './?'. ($cat        != '' ? 'cat='        . $cat   .'&' : '') 
-             . ($search_key != '' ? 'search_key=' . $search_key .'&' : '') 
-             . ($order      != '' ? 'order='      . $order .'&' : '') . 'pg=__page__';
-
-echo build_pagebar($total['total'], $perpage, $page, $url);
-
-echo <<< html
+?> 
         </div><!--end span9-->
       </div><!--end row-->
     </div> <!-- /container -->
@@ -252,8 +133,8 @@ echo <<< html
         }); 
     }
 
-    function add_tag(obj) {
-        var tag = $(obj).prev().val();
+    function add_tag() {
+        var tag = $('#new_tag').val();
 
         $.get('./papa_api.php', {op: 'add_tag', tag : tag}, function(msg) {
             if ($.trim(msg) == 'ok') { 
@@ -270,7 +151,4 @@ echo <<< html
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
     <script src="js/bootstrap-scrollspy.js"></script>
 </body>
-</html>
-html;
-
-//end  file 
+</html> 
