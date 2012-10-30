@@ -53,6 +53,8 @@ $miss_hit = false; //显示memcache是否命中信息
 $conn = mysql_connect( $batchDB['host'], $batchDB['user'], $batchDB['pwd'] ) OR die( 1 );
 mysql_select_db('apple_app', $conn) OR die( 1 );
 mysql_query( "set character set 'utf8'" );
+
+$tag = $_request['tag']; 
 ?>
 
 
@@ -60,36 +62,62 @@ mysql_query( "set character set 'utf8'" );
         <div class="span3">
             <ul class="nav nav-tabs">
                 <li<?=($app_tb == 'app'  ? ' class="active" ' : '')?>><a href="./?app_tb=app">apple</a>
-                <li<?=($app_tb == 'papa' ? ' class="active" ' : '')?>><a href="./?app_tb=papa">papa</a>
+                <?php 
+                if ($app_tb == 'papa') {
+                    if (isset($_REQUEST['tag'])) {
+                        echo '<li><a href="./?app_tb=papa">papa</a>';
+                        echo '<li class="active"><a href="./?tag=">tags</a>'; 
+                    } else {
+                        echo '<li class="active"><a href="./?app_tb=papa">papa</a>';
+                        echo '<li><a href="./?tag=">tags</a>'; 
+                    }
+                } else {
+                    echo '<li><a href="./?app_tb=papa">papa</a>';
+                }
+                ?>
             </ul>
 
             <?php
+            $cat = (isset($_REQUEST['cat']) AND $_REQUEST['cat'] != '') ? $_REQUEST['cat'] : ''; 
             $mem = new Memcache; 
             $mem->connect('localhost', 12000) or die ("Could not connect"); 
 
-            $sql = "SELECT DISTINCT primaryGenreName FROM $app_tb";
-            $cat = (isset($_REQUEST['cat']) AND $_REQUEST['cat'] != '') ? $_REQUEST['cat'] : ''; 
-
-            $mem_key = $app_tb.'_cat_'.$cat; 
-            $app_category = $mem->get($mem_key);
-            if ( ! $app_category ) {
-                if ($miss_hit) echo '<p>cat miss';
+            if (isset($_REQUEST['tag'])) {
+                $sql = "SELECT * FROM tags"; 
                 $rows = mysql_query($sql, $conn); 
-
-                $app_category  = '<ul class="nav nav-list">'; 
-                $app_category .= '<li'. ($cat==''? ' class="active"':'') .'><a href="./?">All</a>'; 
+                echo '<ul class="nav nav-list">'; 
                 while ( $row = mysql_fetch_array($rows) ) {
-                    $app_category .= '<li'.($cat==$row['primaryGenreName'] ? ' class="active"':'') .'>';
-                    $app_category .= '<a href="?cat='.$row['primaryGenreName'].'">' .$row['primaryGenreName'].'</a>'; 
+                    echo '<li>';
+                    echo '<a href="#">' .$row['tag'].'</a>'; 
                 } 
-                $app_category .= '</ul>'; 
 
-                $mem->set($mem_key, $app_category, 0, 600); 
-            } else {
-                if ($miss_hit) echo '<p>cat hit';
+                echo '</ul>'; 
+
+                echo '<br/><input type="text">';
+                echo '<span class="btn" onclick="add_tag(this);">Add Tag</span>'; 
+            } else { 
+                $sql = "SELECT DISTINCT primaryGenreName FROM $app_tb"; 
+                $mem_key = $app_tb.'_cat_'.$cat; 
+                $app_category = $mem->get($mem_key);
+                if ( ! $app_category ) {
+                    if ($miss_hit) echo '<p>cat miss';
+                    $rows = mysql_query($sql, $conn); 
+
+                    $app_category  = '<ul class="nav nav-list">'; 
+                    $app_category .= '<li'. ($cat==''? ' class="active"':'') .'><a href="./?">All</a>'; 
+                    while ( $row = mysql_fetch_array($rows) ) {
+                        $app_category .= '<li'.($cat==$row['primaryGenreName'] ? ' class="active"':'') .'>';
+                        $app_category .= '<a href="?cat='.$row['primaryGenreName'].'">' .$row['primaryGenreName'].'</a>'; 
+                    } 
+                    $app_category .= '</ul>'; 
+
+                    $mem->set($mem_key, $app_category, 0, 600); 
+                } else {
+                    if ($miss_hit) echo '<p>cat hit';
+                }
+
+                echo $app_category; 
             }
-
-            echo $app_category; 
 
             $search_key = $_REQUEST['search_key'];
 
@@ -126,7 +154,7 @@ if ($order == 'date') {
 }
 
 $sql  = "SELECT count(*) AS total FROM $app_tb $where";
-//echo '<p>'.$sql;
+echo '<p>'.$sql;
 
 $mem_key = $app_tb.'_sum_'.$cat.$search_key;
 $total = $mem->get($mem_key);
@@ -142,13 +170,13 @@ if ( ! $total) {
 echo '<p>Sum of App : ' . $total['total'];
 if ($search_key != '' and $app_tb == 'app') {
     echo '<span style="margin-left:30px;"><a target="_blank" href="./papa_api.php?op=add_search_to_papa&search=' . $search_key . '">Add to PaPa</a></span>';
-}
+} 
 
 $perpage = 10;
 $page = $_REQUEST['pg'] ? $_REQUEST['pg'] : 1;
 
 $sql  = "SELECT * FROM $app_tb $where $order_by " . build_limit($page, $perpage); 
-//echo '<p>'.$sql;
+echo '<p>'.$sql;
 
 $mem_key = $app_tb.'_list_'.$cat.$order.$page.$search_key;
 $cat_list = $mem->get($mem_key);
@@ -219,6 +247,19 @@ echo <<< html
                 $(obj).html('Add Ok'); 
             } else {
                 alert('运用加入PaPa不成功！稍后再试。');
+                console.log(msg);
+            }
+        }); 
+    }
+
+    function add_tag(obj) {
+        var tag = $(obj).prev().val();
+
+        $.get('./papa_api.php', {op: 'add_tag', tag : tag}, function(msg) {
+            if ($.trim(msg) == 'ok') { 
+                location.reload();
+            } else {
+                alert('加入tag不成功！稍后再试。');
                 console.log(msg);
             }
         });
