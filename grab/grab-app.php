@@ -1,7 +1,7 @@
 <?php
 set_time_limit(0);
 
-require 'functions.php'; 
+require '../functions.php'; 
 require 'app_ids.php'; 
 
 /**
@@ -25,8 +25,6 @@ function get_and_save_app_id($urls) {
         @$app_ids[$match_result[1][0]] += 1; 
     } 
 
-    file_put_contents('app_ids.php', 
-                      '<?php $app_ids = '. var_export($app_ids, TRUE) . ';');
 }
 
 $category_id = array(6018, 6000, 6022, 6017, 6016, 6015, 6023, 6014, 7001, 7002,
@@ -58,10 +56,14 @@ foreach ($category_id as $cat_id) {
 
             //ÐÅÏ¢ÏÔÊ¾
             echo $url. "\n";
-            echo 'App total: ' . count($app_ids)."\n";
         }
+
+        file_put_contents('app_ids.php', '<?php $app_ids = '. var_export($app_ids, TRUE) . ';');
+        echo 'App total: ' . count($app_ids)."\n";
     }
 }
+
+file_put_contents('app_ids.php', '<?php $app_ids = '. var_export($app_ids, TRUE) . ';');
 
 echo 'finished!'."\n";
 
