@@ -32,12 +32,6 @@
       .hero-unit {
           padding:30px;
       }
-      .controls {
-          margin-left: 100px !important;
-      }
-      .control-label {
-          width: 80px !important;
-      }
     </style>
   </head>
 
@@ -73,8 +67,95 @@
 
       <div class="row">
         <div class="span9"> 
-        <?php 
+        <?php
+            if ($app_tb == 'papa') {
+                $sql   = "SELECT * FROM humit Where trackId='$trackId'";
+                $rows  = mysql_query($sql, $conn); 
+                $app_humit = mysql_fetch_array($rows); 
+            }
 
+            $app_humit['age'] = explode(',', $app_humit['age']);
+            foreach ($app_humit['age'] as $key => $age) {
+                $app_humit['age'][$key] = trim($age);
+            } 
+
+            $humit_category = array('Musical', 'Bodily Kinesthetic', 'Logical Mathematical', 'Linguistic', 'Spatial', 'Interpersonal', 'Intrapersonal', 'Naturalist', 'Existential');
+            $humit_age      = array('0-1','1','2','3','4','5','5+','6','6+','7','7+','8+'); 
+        ?> 
+            <div style="<?=($app_tb == 'app' ? 'display:none;' : '')?>padding:10px;">
+                <h3>Humit Info</h3>
+
+                <form class="form-horizontal">
+                    <div class="control-group">
+                        <label class="control-label">Category:</label>
+                        <div class="controls">
+                        <select class="span2" id="humit">
+                        <?php
+                        foreach ($humit_category as $cat) {
+                            echo '<option '.($app_humit['humit'] == $cat ? 'selected' : '').' value="'.$cat.'">'.$cat.'</option>'."\n";
+                        }
+                        ?>
+                        </select>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <label class="control-label">Gender: </label>
+                        <div class="controls">
+                        <select class="span2" id="gender">
+                            <option <?=($app_humit['gender'] == 'Both'  ? 'selected' : '')?> value="Both">Both</option>
+                            <option <?=($app_humit['gender'] == 'Boys'  ? 'selected' : '')?> value="Boys">Boys</option>
+                            <option <?=($app_humit['gender'] == 'Girls' ? 'selected' : '')?> value="Girls">Girls</option>
+                        </select>
+                        </div>
+                    </div>
+
+                    <div class="control-group"> 
+                        <label class="control-label">Age: </label>
+                        <div class="controls">
+                        <?php
+                        foreach ($humit_age as $age) {
+                            echo '<label class="checkbox inline">';
+                            echo '<input '.( in_array($age, $app_humit['age']) ? 'checked="checked"' : '').' type="checkbox" name="age" value="'.$age.'"> '.$age.'';
+                            echo '</label>';
+                        }
+                        ?>
+                        </div>
+                    </div>
+
+                    <div class="control-group"> 
+                        <label class="control-label">Tag: </label>
+                        <div class="controls">
+                        <?php
+                        $sql   = "SELECT * FROM tags";
+                        $rows_tags  = mysql_query($sql, $conn); 
+
+                        $sql   = "SELECT * FROM tag_for_app WHERE trackId = $trackId";
+                        $rows_app_tags = mysql_query($sql, $conn); 
+                        $app_tags = array();
+                        while ($app_tag = mysql_fetch_array($rows_app_tags)) {
+                            $app_tags[] = $app_tag['tag_id'];
+                        } 
+
+                        while ($tag = mysql_fetch_array($rows_tags)) {
+                            echo '<label class="checkbox inline">';
+                            echo '<input '.( in_array($tag['id'], $app_tags) ? 'checked="checked"' : '').' type="checkbox" name="tags" value="'.$tag['id'].'"> '.$tag['tag'];
+                            echo '</label>';
+                        }
+                        ?>
+                        </div>
+                    </div>
+
+                    <div class="control-group"> 
+                        <div class="controls">
+                        <span class="btn" onclick="humit_save(this, <?=$row['trackId']?>);">Save</span>
+                        </div>
+                    </div>
+
+                </form>
+            </div>
+
+        <?php 
         echo '<table class="table">'; 
         echo '<tr>';
         echo '<td width="1px;"><a><img width="256px" height="256px" src="'.$row['artworkUrl512'].'" alt="" /></a></td>';
@@ -118,70 +199,7 @@
         </div><!--end span9-->
 
         <div class="span3"> 
-        <?php
-            if ($app_tb == 'papa') {
-                $sql   = "SELECT * FROM humit Where trackId='$trackId'";
-                $rows  = mysql_query($sql, $conn); 
-                $app_humit = mysql_fetch_array($rows); 
-            }
-
-            $app_humit['age'] = explode(',', $app_humit['age']);
-            foreach ($app_humit['age'] as $key => $age) {
-                $app_humit['age'][$key] = trim($age);
-            } 
-
-            $humit_category = array('Musical', 'Bodily Kinesthetic', 'Logical Mathematical', 'Linguistic', 'Spatial', 'Interpersonal', 'Intrapersonal', 'Naturalist', 'Existential');
-            $humit_age      = array('0-1','1','2','3','4','5','5+','6','6+','7','7+','8+'); 
-        ?> 
-            <div style="<?=($app_tb == 'app' ? 'display:none;' : '')?>border:1px solid #ddd;padding:10px;">
-                <h3>Humit Info</h3>
-
-                <form class="form-horizontal">
-                    <div class="control-group">
-                        <label class="control-label">Category:</label>
-                        <div class="controls">
-                        <select class="span1" id="humit">
-                        <?php
-                        foreach ($humit_category as $cat) {
-                            echo '<option '.($app_humit['humit'] == $cat ? 'selected' : '').' value="'.$cat.'">'.$cat.'</option>'."\n";
-                        }
-                        ?>
-                        </select>
-                        </div>
-                    </div>
-
-                    <div class="control-group">
-                        <label class="control-label">Gender: </label>
-                        <div class="controls">
-                        <select class="span1" id="gender">
-                            <option <?=($app_humit['gender'] == 'Both'  ? 'selected' : '')?> value="Both">Both</option>
-                            <option <?=($app_humit['gender'] == 'Boys'  ? 'selected' : '')?> value="Boys">Boys</option>
-                            <option <?=($app_humit['gender'] == 'Girls' ? 'selected' : '')?> value="Girls">Girls</option>
-                        </select>
-                        </div>
-                    </div>
-
-                    <div class="control-group"> 
-                        <label class="control-label">Age: </label>
-                        <div class="controls">
-                        <?php
-                        foreach ($humit_age as $age) {
-                            echo '<input '.( in_array($age, $app_humit['age']) ? 'checked="checked"' : '').' type="checkbox" name="age" value="'.$age.'"> '.$age.'<br />';
-                        }
-                        ?>
-                        </div>
-                    </div>
-
-                    <div class="control-group"> 
-                        <div class="controls">
-                        <span class="btn" onclick="humit_save(this, <?=$row['trackId']?>);">Save</span>
-                        </div>
-                    </div>
-
-                </form>
-            </div>
-
-            <div style="margin-top:10px;border:1px solid #ddd;padding:10px;">
+            <div style="border:1px solid #ddd;padding:10px;">
                 <p>ad. info
                 <p>1
                 <p>2
@@ -204,6 +222,11 @@
             age.push($(this).val());  
         });  
 
+        var tags    = [];  
+        $('input[name="tags"]:checked').each(function(){  
+            tags.push($(this).val());  
+        });  
+
         if (age.length == 0) {
             alert('Selecting ages please！');  
             return false;
@@ -212,7 +235,8 @@
             return false;
         } 
 
-        $.get('papa_api.php', {op : 'humit_info_save', trackId : trackId, humit : humit, gender : gender, age : age}, function(msg) {
+        $.get('papa_api.php', {op : 'humit_info_save', trackId : trackId, humit : humit,
+                               gender : gender, age : age, tags : tags}, function(msg) {
             if ($.trim(msg) == 'ok') {
                 $(obj).html('Saved'); 
             } else {

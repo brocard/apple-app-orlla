@@ -25,10 +25,30 @@ if ( $op == 'add_to_papa') {
     $trackId = $_REQUEST['trackId'];
     $humit   = $_REQUEST['humit'];
     $gender  = $_REQUEST['gender'];
-    $age     = implode(', ', $_REQUEST['age']);
+    $age     = implode(',', $_REQUEST['age']);
+    $tags    = $_REQUEST['tags'];
 
     $sql = "UPDATE humit SET humit='$humit', gender='$gender', age='$age' "
          . "WHERE trackId=$trackId";
+    mysql_query($sql, $conn); 
+
+    //删除已有tags
+    $sql = "DELETE FROM tag_for_app WHERE trackId = $trackId";
+    mysql_query($sql, $conn); 
+
+    //添加新tags
+    $sql = "INSERT INTO tag_for_app (trackId, tag_id) VALUES ";
+    $values = array();
+    foreach ($tags as $tag) {
+        $values[] = "($trackId, $tag)";
+    }
+    $sql .= implode(',', $values);
+    mysql_query($sql, $conn); 
+
+    echo 'ok'; 
+} else if ($op == 'add_tag') {
+    $tag = $_REQUEST['tag'];
+    $sql = "INSERT INTO tags (tag) values('$tag')";
     mysql_query($sql, $conn); 
     echo 'ok'; 
 }
