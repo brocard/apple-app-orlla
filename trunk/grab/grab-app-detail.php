@@ -22,6 +22,7 @@ if ($pick_new) {
     echo "\n";
     file_put_contents('app_ids.php', '<?php $app_ids = '. var_export($app_ids, TRUE) . ';');
     mysql_close($conn);
+    exit;
 }
 
 $i = 0;
