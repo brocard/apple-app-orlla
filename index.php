@@ -46,10 +46,6 @@ require 'functions.php';
 
 $app_tb   = select_app_tb();
 
-$conn = mysql_connect( $batchDB['host'], $batchDB['user'], $batchDB['pwd'] ) OR die( 1 );
-mysql_select_db('apple_app', $conn) OR die( 1 );
-mysql_query( "set character set 'utf8'" );
-
 $mem = new Memcache; 
 $mem->connect('localhost', 12000) or die ("Could not connect"); 
 $miss_hit = false;      //是否显示memcache命中信息
