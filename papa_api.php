@@ -14,7 +14,12 @@ if ( $op == 'add_to_papa') {
     echo 'ok';
 } else if ($op == 'add_search_to_papa') {
     $search = $_REQUEST['search'];
-    $sql = "SELECT trackId, trackName FROM app WHERE MATCH (trackName) AGAINST ('$search')";
+    $cat = $_REQUEST['cat'];
+    if ($cat != '') {
+        $cat = " primaryGenreName = '$cat' AND ";
+    }
+
+    $sql = "SELECT trackId, trackName FROM app WHERE $cat MATCH (trackName) AGAINST ('$search')";
     $rows = mysql_query($sql, $conn);
     while ($row = mysql_fetch_array($rows)) {
         echo '<p>'.$row['trackName'];

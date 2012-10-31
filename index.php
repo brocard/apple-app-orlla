@@ -1,48 +1,10 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <title>abc</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="">
-    <meta name="author" content="">
-
-    <!-- Le styles -->
-    <link href="css/bootstrap.css" rel="stylesheet">
-    <style type="text/css">
-      body {
-        padding-top: 60px !important;
-        padding-bottom: 40px;
-      }
-      .hero-unit {
-          padding:30px;
-      }
-    </style>
-    <link href="css/bootstrap-responsive.css" rel="stylesheet">
-
-    <!-- Le HTML5 shim, for IE6-8 support of HTML5 elements -->
-    <!--[if lt IE 9]>
-      <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
-    <![endif]-->
-
-    <!-- Le fav and touch icons -->
-    <link rel="shortcut icon" href="../assets/ico/favicon.ico">
-    <link rel="apple-touch-icon-precomposed" sizes="144x144" href="../assets/ico/apple-touch-icon-144-precomposed.png">
-    <link rel="apple-touch-icon-precomposed" sizes="114x114" href="../assets/ico/apple-touch-icon-114-precomposed.png">
-    <link rel="apple-touch-icon-precomposed" sizes="72x72" href="../assets/ico/apple-touch-icon-72-precomposed.png">
-    <link rel="apple-touch-icon-precomposed" href="../assets/ico/apple-touch-icon-57-precomposed.png">
-  </head> 
-
-  <body> 
-  <div class="container">
-      <div class="row">
-        <div class="span12">
-        </div>
-      </div>
-
-<?php 
+<?php
 require 'config.php'; 
 require 'functions.php'; 
+
+require('./templates/class_template.php');    
+$path = './templates/';    
+$tpl = & new Template($path);    
 
 $app_tb   = select_app_tb();
 
@@ -52,22 +14,45 @@ $miss_hit = false;      //是否显示memcache命中信息
 
 $tag = $_REQUEST['tag']; 
 $cat = (isset($_REQUEST['cat']) AND $_REQUEST['cat'] != '') ? $_REQUEST['cat'] : ''; 
-$search_key = $_REQUEST['search_key'];
-?> 
-      <div class="row">
-        <div class="span3">
-            <?php include 'left_nav.tpl.php'; ?> 
-        </div><!--end span3-->
+$search_key = $_REQUEST['search_key']; 
 
-        <div class="span9"> 
-            <form class="form-search" action="" method="get">
-                <div class="input-append">
-                <input type="hidden" value="<?php echo $cat; ?>" name="cat"> 
-                <input type="text" value="<?php echo $search_key; ?>" name="search_key" class="span3 search-query">
-                <button type="submit" class="btn">Search</button>
-                </div>
-            </form>
-<?php 
+//left nav
+$left_nav = '';
+if (isset($_REQUEST['tag'])) {
+    $sql = "SELECT * FROM tags"; 
+    $rows = mysql_query($sql, $conn); 
+    while ( $row = mysql_fetch_array($rows) ) {
+        $left_nav .= '<li'.($tag == $row['tag'] ? ' class="active" ' : '').'>';
+        $left_nav .= '<a href="?tag='.$row['tag'].'">' .$row['tag'].'</a>'; 
+    } 
+
+    $left_nav .= '<br/><input id="new_tag" type="text" class="input-medium"><br />';
+    $left_nav .= '<span class="btn" onclick="add_tag();">Add Tag</span>'; 
+
+} else { 
+    $sql = "SELECT DISTINCT primaryGenreName FROM $app_tb"; 
+    $mem_key = $app_tb.'_cat_'.$cat; 
+    $app_category = $mem->get($mem_key);
+    if ( ! $app_category ) {
+        if ($miss_hit) echo '<p>cat miss';
+        $rows = mysql_query($sql, $conn); 
+
+        $app_category = '<li'. ($cat==''? ' class="active"':'') .'><a href="./?">All</a>'; 
+        while ( $row = mysql_fetch_array($rows) ) {
+            $app_category .= '<li'.($cat==$row['primaryGenreName'] ? ' class="active"':'') .'>';
+            $app_category .= '<a href="?cat='.$row['primaryGenreName'].'">' .$row['primaryGenreName'].'</a>'; 
+        } 
+
+        $mem->set($mem_key, $app_category, 0, 600); 
+    } else {
+        if ($miss_hit) echo '<p>cat hit';
+    }
+
+    $left_nav = $app_category; 
+} 
+
+
+//Sum of App
 if (isset($_REQUEST['tag'])) {
     if ($tag == '') {
         //
@@ -80,7 +65,6 @@ if (isset($_REQUEST['tag'])) {
         $sql  = "SELECT COUNT(*) AS total FROM tag_for_app WHERE tag_id = $tag_id"; 
         $rows = mysql_query($sql, $conn); 
         $total = mysql_fetch_array($rows);
-        echo '<p>Sum of App : ' . $total['total'];
     }
 } else {
     $where = ($cat == '' ? '' : " WHERE primaryGenreName='$cat' ");
@@ -105,46 +89,94 @@ if (isset($_REQUEST['tag'])) {
         if ($miss_hit) echo '<p>cat hit';
     }
 
-    echo '<p>Sum of App : ' . $total['total'];
-    if ($search_key != '' and $app_tb == 'app') {
-        echo '<span style="margin-left:30px;"><a target="_blank" href="./papa_api.php?op=add_search_to_papa&search=' . $search_key . '">Add to PaPa</a></span>';
-    } 
 }
 
-include 'app_list.tpl.php';
+//app list
+$perpage = 10;
+$page = $_REQUEST['pg'] ? $_REQUEST['pg'] : 1;
 
-?> 
-        </div><!--end span9-->
-      </div><!--end row-->
-    </div> <!-- /container -->
-    <script>
-    function add_to_papa(obj, trackId) {
-        $.get('./papa_api.php', {op: 'add_to_papa', trackId: trackId}, function(msg) {
-            if ($.trim(msg) == 'ok') { 
-                $(obj).html('Add Ok'); 
-            } else {
-                alert('运用加入PaPa不成功！稍后再试。');
-                console.log(msg);
-            }
-        }); 
+$url_param = '';
+if ($cat != '') {
+    $url_param .= 'cat='.$cat.'&'; 
+}
+
+if ($search_key != '') {
+    $url_param .= 'search_key='.$search_key.'&'; 
+}
+
+if (isset($_REQUEST['tag'])) {
+    if ($tag == '') {
+        //
+    } else {
+        $sql  = "SELECT * FROM papa WHERE trackId IN "
+              . "(SELECT trackId FROM tag_for_app WHERE tag_id = $tag_id) " 
+              . build_limit($page, $perpage); 
+        $rows_app = mysql_query($sql, $conn); 
+
+        $url  = './?'. ($cat        != '' ? 'cat='        . $cat   .'&' : '') 
+                    . ($search_key != '' ? 'search_key=' . $search_key .'&' : '') 
+                    . ($order      != '' ? 'order='      . $order .'&' : '') . 'pg=__page__';
+        $pagebar = build_pagebar($total['total'], $perpage, $page, $url); 
+    }
+    
+} else {
+    $order = $_REQUEST['order']; 
+    $order_by = '';
+    if ($order == 'date') { 
+        $order_by = " ORDER BY releaseDate DESC";
+    } else if ($order == 'price') { 
+        $order_by = " ORDER BY formattedPrice DESC";
+    } else if ($order == 'rating') { 
+        $order_by = " ORDER BY averageUserRating DESC";
     }
 
-    function add_tag() {
-        var tag = $('#new_tag').val();
+    $sql  = "SELECT * FROM $app_tb $where $order_by " . build_limit($page, $perpage); 
+    $mem_key = $app_tb.'_list_'.$cat.$order.$page.$search_key;
+    $rows_app = $mem->get($mem_key);
+    if ( ! $rows_app) { 
+        if ($miss_hit) echo '<p>cat miss';
+        $rows_app = mysql_query($sql, $conn); 
+        $mem->set($mem_key, $rows_app, 0, 600); 
+    } else {
+        if ($miss_hit) echo '<p>cat hit';
+    } 
 
-        $.get('./papa_api.php', {op: 'add_tag', tag : tag}, function(msg) {
-            if ($.trim(msg) == 'ok') { 
-                location.reload();
-            } else {
-                alert('加入tag不成功！稍后再试。');
-                console.log(msg);
-            }
-        });
+    $url  = './?'. ($cat        != '' ? 'cat='        . $cat   .'&' : '') 
+                . ($search_key != '' ? 'search_key=' . $search_key .'&' : '') 
+                . ($order      != '' ? 'order='      . $order .'&' : '') . 'pg=__page__';
 
+    $pagebar = build_pagebar($total['total'], $perpage, $page, $url); 
+} 
+
+$tpl->set('title', 'index');    
+$tpl->set('app_tb', $app_tb);    
+$tpl->set('left_nav', $left_nav);    
+
+$tpl->set('cat', $cat);    
+$tpl->set('search_key', $search_key);    
+$tpl->set('total', $total);    
+
+$tpl->set('url_param', $url_param);    
+$tpl->set('rows_app', app_list($rows_app));    
+$tpl->set('pagebar', $pagebar);    
+
+
+echo $tpl->fetch('index.tpl.php');    
+
+function app_list($rows) {
+    global $cat;
+    global $search_key;
+    $app_list = array();
+
+    while ( $row = mysql_fetch_array($rows) ) { 
+        if ($search_key != '') {
+            $row['trackName'] = str_ireplace($search_key, "<b>$search_key</b>", $row['trackName']);
+        } 
+
+        $app_list[] = $row;
     }
-    </script>
 
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
-    <script src="js/bootstrap-scrollspy.js"></script>
-</body>
-</html> 
+    return $app_list;
+}
+
+//end file
